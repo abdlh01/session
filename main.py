@@ -3,30 +3,37 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message
 from aiogram.client.default import DefaultBotProperties
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+
 from keep_alive import keep_alive
 import asyncio
 from datetime import datetime, timedelta
 import pytz
 
 TOKEN = "7700309780:AAFVb4k6AwrWKQMidbtjoRNrEsu3vOcb06c"
-CHANNEL_ID = -1002333575329  # ID الجديد
+CHANNEL_ID = -1002333575329
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher(storage=MemoryStorage())
+
+class SessionStates(StatesGroup):
+    waiting_for_count = State()
 
 is_running = False
 current_sessions = 0
 
 @dp.message(F.text == "/start")
-async def start_command(message: Message):
+async def start_command(message: Message, state: FSMContext):
     global is_running
     if is_running:
         await message.answer("⚠️ الجلسات تعمل بالفعل!")
         return
     await message.answer("كم عدد الجلسات التي تريد تشغيلها؟ (من 1 إلى 8)")
-    dp.message.register(get_session_count)
+    await state.set_state(SessionStates.waiting_for_count)
 
-async def get_session_count(message: Message):
+@dp.message(SessionStates.waiting_for_count)
+async def get_session_count(message: Message, state: FSMContext):
     global is_running, current_sessions
     try:
         count = int(message.text)
@@ -35,7 +42,8 @@ async def get_session_count(message: Message):
             return
         current_sessions = count
         is_running = True
-        await message.answer("✅ بدأ إرسال الجلممنسات...")
+        await message.answer("✅ بدأ إرسال الجلسات...")
+        await state.clear()
         await send_sessions()
     except ValueError:
         await message.answer("⚠️ الرجاء إدخال رقم صحيح من 1 إلى 8.")
@@ -55,7 +63,6 @@ async def send_sessions():
     if not is_running:
         return
 
-    # الوقت حسب الجزائر
     alg_time = datetime.now(pytz.timezone("Africa/Algiers"))
 
     await bot.send_message(CHANNEL_ID,
