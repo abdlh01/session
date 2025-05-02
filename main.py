@@ -11,7 +11,7 @@ from aiogram.client.default import DefaultBotProperties
 from keep_alive import keep_alive
 
 # إعدادات البوت
-TOKEN = "7700309780:7700309780:AAHj24bQEk0muL22DMUFR71fLFOgYsiqNvg"
+TOKEN = "7700309780:AAE1NunbggnimpxpVJB6QNA1F7UJo3-Bfvc"
 CHANNEL_ID = -1002333575329  # غيّره إذا لزم
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
