@@ -22,14 +22,26 @@ class SessionStates(StatesGroup):
 
 is_running = False
 current_sessions = 0
+is_test_mode = False
 
 @dp.message(F.text == "/start")
 async def start_command(message: Message, state: FSMContext):
-    global is_running
+    global is_running, is_test_mode
     if is_running:
         await message.answer("⚠️ الجلسات تعمل بالفعل!")
         return
+    is_test_mode = False
     await message.answer("كم عدد الجلسات التي تريد تشغيلها؟ (من 1 إلى 8)")
+    await state.set_state(SessionStates.waiting_for_count)
+
+@dp.message(F.text == "/test")
+async def test_command(message: Message, state: FSMContext):
+    global is_running, is_test_mode
+    if is_running:
+        await message.answer("⚠️ الجلسات تعمل بالفعل!")
+        return
+    is_test_mode = True
+    await message.answer("🔎 وضع التجربة: كم عدد الجلسات؟ (من 1 إلى 8)")
     await state.set_state(SessionStates.waiting_for_count)
 
 @dp.message(SessionStates.waiting_for_count)
@@ -57,45 +69,75 @@ async def stop_command(message: Message):
     else:
         await message.answer("لا توجد جلسات حاليًا لإيقافها.")
 
+async def countdown_edit(msg, total_seconds):
+    for remaining in range(total_seconds // 60, 0, -1):
+        if not is_running:
+            return
+        try:
+            await asyncio.sleep(60)
+            new_text = msg.text.replace(
+                msg.text.split("⏰")[1].split("ب")[0].strip(),
+                f"⏰ متبقي : {remaining}Min\n"
+            )
+            await bot.edit_message_text(new_text, msg.chat.id, msg.message_id)
+        except:
+            break
+
 async def send_sessions():
-    global is_running, current_sessions
+    global is_running, current_sessions, is_test_mode
 
     if not is_running:
         return
 
-    alg_time = datetime.now(pytz.timezone("Africa/Algiers"))
+    tz = pytz.timezone("Africa/Algiers")
+    alg_time = datetime.now(tz)
+    work_duration = timedelta(minutes=5 if is_test_mode else 60)
+    break_duration = timedelta(minutes=2 if is_test_mode else 10)
 
-    await bot.send_message(CHANNEL_ID,
+    start_time = alg_time
+    end_time = start_time + work_duration
+
+    msg = await bot.send_message(CHANNEL_ID,
         f"🫶  بسم الله نبدا على بركة الله\n\n"
         f"📅 • الجلسة الأولى 📚 :\n\n"
-        f"🕥   • من {alg_time.strftime('%H:%M')} إلى {(alg_time + timedelta(hours=1)).strftime('%H:%M')}\n\n"
+        f"🕥   • من {start_time.strftime('%H:%M')} إلى {end_time.strftime('%H:%M')}\n\n"
+        f"⏰ متبقي : {int(work_duration.total_seconds() // 60)}Min\n\n"
         f"بالتوفيق والسداد للجميع 💜")
-    await asyncio.sleep(3600)
+    await countdown_edit(msg, int(work_duration.total_seconds()))
+    await asyncio.sleep(work_duration.total_seconds())
 
     if not is_running:
         return
-    await bot.send_message(CHANNEL_ID,
-        "🪫 راحة لمدة 10 دقائق ⌛️\n\nالأفضل أن تقضيها بعيدا عن هاتفك 💜")
-    await asyncio.sleep(600)
+    msg = await bot.send_message(CHANNEL_ID,
+        "🪫 راحة لمدة 10 دقائق ⌛️\n\n"
+        "⏰ متبقي : 10Min\n\n"
+        "الأفضل أن تقضيها بعيدا عن هاتفك 💜")
+    await countdown_edit(msg, int(break_duration.total_seconds()))
+    await asyncio.sleep(break_duration.total_seconds())
 
     for i in range(2, current_sessions + 1):
         if not is_running:
             return
-        start_time = alg_time + timedelta(hours=(i - 1), minutes=10)
-        end_time = start_time + timedelta(hours=1)
+        start_time += work_duration + break_duration
+        end_time = start_time + work_duration
 
-        await bot.send_message(CHANNEL_ID,
+        msg = await bot.send_message(CHANNEL_ID,
             f"📅 • الجلسة {i} 📚 :\n\n"
             f"🕥   • من {start_time.strftime('%H:%M')} إلى {end_time.strftime('%H:%M')}\n\n"
+            f"⏰ متبقي : {int(work_duration.total_seconds() // 60)}Min\n\n"
             f"بالتوفيق والسداد للجميع 💜")
-        await asyncio.sleep(3600)
+        await countdown_edit(msg, int(work_duration.total_seconds()))
+        await asyncio.sleep(work_duration.total_seconds())
 
         if i != current_sessions:
             if not is_running:
                 return
-            await bot.send_message(CHANNEL_ID,
-                "🪫 راحة لمدة 10 دقائق ⌛️\n\nالأفضل أن تقضيها بعيدا عن هاتفك 💜")
-            await asyncio.sleep(600)
+            msg = await bot.send_message(CHANNEL_ID,
+                "🪫 راحة لمدة 10 دقائق ⌛️\n\n"
+                "⏰ متبقي : 10Min\n\n"
+                "الأفضل أن تقضيها بعيدا عن هاتفك 💜")
+            await countdown_edit(msg, int(break_duration.total_seconds()))
+            await asyncio.sleep(break_duration.total_seconds())
 
     if is_running:
         await bot.send_message(CHANNEL_ID,
