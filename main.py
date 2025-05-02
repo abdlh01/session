@@ -115,7 +115,6 @@ async def send_sessions(total_sessions):
         start_time = datetime.now(tz)
         end_time = start_time + work_duration
 
-        # رسالة بداية الجلسة
         header = "🫶  بسم الله نبدا على بركة الله\n\n" if i == 1 else ""
         await bot.send_message(
             CHANNEL_ID,
@@ -124,12 +123,11 @@ async def send_sessions(total_sessions):
             f"بالتوفيق والسداد للجميع 💜"
         )
 
-        await asyncio.sleep(work_duration.total_seconds())
+        await asyncio.sleep((end_time - datetime.now(tz)).total_seconds())
 
         if not is_running:
             return
 
-        # استراحة
         if i != total_sessions:
             await bot.send_message(
                 CHANNEL_ID,
@@ -138,7 +136,6 @@ async def send_sessions(total_sessions):
             )
             await asyncio.sleep(break_duration.total_seconds())
 
-    # نهاية الجلسات
     if is_running:
         await bot.send_message(
             CHANNEL_ID,
