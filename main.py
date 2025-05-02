@@ -11,7 +11,7 @@ import asyncio
 from datetime import datetime, timedelta
 import pytz
 
-TOKEN = "7700309780:AAFVb4k6AwrWKQMidbtjoRNrEsu3vOcb06c"
+TOKEN = "YOUR_BOT_TOKEN"
 CHANNEL_ID = -1002333575329
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
@@ -75,20 +75,37 @@ async def countdown_edit(msg, total_seconds):
             return
         try:
             await asyncio.sleep(60)
-            new_text = msg.text.replace(
-                msg.text.split("⏰")[1].split("ب")[0].strip(),
-                f"⏰ متبقي : {remaining}Min\n"
-            )
+            lines = msg.text.split("\n")
+            updated = False
+            for i, line in enumerate(lines):
+                if line.startswith("⏰ متبقي"):
+                    lines[i] = f"⏰ متبقي : {remaining}Min"
+                    updated = True
+                    break
+            if not updated:  # أضف السطر بعد السطر الأخير الخاص بالتوقيت
+                for i, line in enumerate(lines):
+                    if "إلى" in line:
+                        lines.insert(i + 1, f"⏰ متبقي : {remaining}Min")
+                        break
+            new_text = "\n".join(lines)
             await bot.edit_message_text(new_text, msg.chat.id, msg.message_id)
-        except:
+        except Exception as e:
             break
+
+    # إذا انتهى الوقت ولم يتم تحديث الرسالة في الدورة، يمكننا تحديد حالة الانتهاء
+    if total_seconds == 0 or remaining <= 0:
+        lines = msg.text.split("\n")
+        for i, line in enumerate(lines):
+            if line.startswith("⏰ متبقي"):
+                lines[i] = "⏰ الجلسة انتهت"
+                break
+        new_text = "\n".join(lines)
+        await bot.edit_message_text(new_text, msg.chat.id, msg.message_id)
 
 async def send_sessions():
     global is_running, current_sessions, is_test_mode
-
     if not is_running:
         return
-
     tz = pytz.timezone("Africa/Algiers")
     alg_time = datetime.now(tz)
     work_duration = timedelta(minutes=5 if is_test_mode else 60)
@@ -96,18 +113,17 @@ async def send_sessions():
 
     start_time = alg_time
     end_time = start_time + work_duration
-
     msg = await bot.send_message(CHANNEL_ID,
-        f"🫶  بسم الله نبدا على بركة الله\n\n"
+        f"🫶 بسم الله نبدا على بركة الله\n\n"
         f"📅 • الجلسة الأولى 📚 :\n\n"
         f"🕥   • من {start_time.strftime('%H:%M')} إلى {end_time.strftime('%H:%M')}\n\n"
-        f"⏰ متبقي : {int(work_duration.total_seconds() // 60)}Min\n\n"
         f"بالتوفيق والسداد للجميع 💜")
     await countdown_edit(msg, int(work_duration.total_seconds()))
     await asyncio.sleep(work_duration.total_seconds())
 
     if not is_running:
         return
+
     msg = await bot.send_message(CHANNEL_ID,
         "🪫 راحة لمدة 10 دقائق ⌛️\n\n"
         "⏰ متبقي : 10Min\n\n"
@@ -124,7 +140,6 @@ async def send_sessions():
         msg = await bot.send_message(CHANNEL_ID,
             f"📅 • الجلسة {i} 📚 :\n\n"
             f"🕥   • من {start_time.strftime('%H:%M')} إلى {end_time.strftime('%H:%M')}\n\n"
-            f"⏰ متبقي : {int(work_duration.total_seconds() // 60)}Min\n\n"
             f"بالتوفيق والسداد للجميع 💜")
         await countdown_edit(msg, int(work_duration.total_seconds()))
         await asyncio.sleep(work_duration.total_seconds())
