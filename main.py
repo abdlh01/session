@@ -11,7 +11,7 @@ import asyncio
 from datetime import datetime, timedelta
 import pytz
 
-TOKEN = "YOUR_BOT_TOKEN"
+TOKEN = "7700309780:AAFVb4k6AwrWKQMidbtjoRNrEsu3vOcb06c"
 CHANNEL_ID = -1002333575329
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
