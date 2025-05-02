@@ -12,7 +12,7 @@ from keep_alive import keep_alive
 
 # إعدادات البوت
 TOKEN = "7700309780:AAE1NunbggnimpxpVJB6QNA1F7UJo3-Bfvc"
-CHANNEL_ID = -1002333575329  # غيّره إذا لزم
+CHANNEL_ID = -1002213510223  # غيّره إذا لزم
 PASSWORD = "1802"
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
