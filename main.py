@@ -1,31 +1,34 @@
-from aiogram import Bot, Dispatcher, F
-from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
-from aiogram.client.default import DefaultBotProperties
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-
-from keep_alive import keep_alive
 import asyncio
 from datetime import datetime, timedelta
 import pytz
+from aiogram import Bot, Dispatcher, F
+from aiogram.enums import ParseMode
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message
+from aiogram.client.default import DefaultBotProperties
+from keep_alive import keep_alive
 
+# إعدادات البوت
 TOKEN = "7700309780:AAFVb4k6AwrWKQMidbtjoRNrEsu3vOcb06c"
-CHANNEL_ID = -1002333575329
+CHANNEL_ID = -1002333575329  # غيّره إذا لزم
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher(storage=MemoryStorage())
 
+# الحالات
 class SessionStates(StatesGroup):
     waiting_for_count = State()
+    waiting_for_test_count = State()
 
+# متغيرات التحكم
 is_running = False
-current_sessions = 0
 is_test_mode = False
 
+# /start العادية
 @dp.message(F.text == "/start")
-async def start_command(message: Message, state: FSMContext):
+async def handle_start(message: Message, state: FSMContext):
     global is_running, is_test_mode
     if is_running:
         await message.answer("⚠️ الجلسات تعمل بالفعل!")
@@ -34,89 +37,94 @@ async def start_command(message: Message, state: FSMContext):
     await message.answer("كم عدد الجلسات التي تريد تشغيلها؟ (من 1 إلى 8)")
     await state.set_state(SessionStates.waiting_for_count)
 
+# /test وضع التجربة
 @dp.message(F.text == "/test")
-async def test_command(message: Message, state: FSMContext):
+async def handle_test(message: Message, state: FSMContext):
     global is_running, is_test_mode
     if is_running:
         await message.answer("⚠️ الجلسات تعمل بالفعل!")
         return
     is_test_mode = True
     await message.answer("🔎 وضع التجربة: كم عدد الجلسات؟ (من 1 إلى 8)")
-    await state.set_state(SessionStates.waiting_for_count)
+    await state.set_state(SessionStates.waiting_for_test_count)
 
+# استلام عدد الجلسات في الوضع العادي والتجريبي
 @dp.message(SessionStates.waiting_for_count)
-async def get_session_count(message: Message, state: FSMContext):
-    global is_running, current_sessions
+@dp.message(SessionStates.waiting_for_test_count)
+async def handle_count(message: Message, state: FSMContext):
+    global is_running
     try:
         count = int(message.text)
         if count < 1 or count > 8:
-            await message.answer("⚠️ أقصى عدد للجلسات هو 8.")
+            await message.answer("⚠️ أدخل رقمًا من 1 إلى 8.")
             return
-        current_sessions = count
         is_running = True
         await message.answer("✅ بدأ إرسال الجلسات...")
         await state.clear()
-        await send_sessions()
+        await send_sessions(count)
     except ValueError:
         await message.answer("⚠️ الرجاء إدخال رقم صحيح من 1 إلى 8.")
 
+# أمر الإيقاف
 @dp.message(F.text == "/stop")
-async def stop_command(message: Message):
+async def stop_sessions(message: Message):
     global is_running
     if is_running:
         is_running = False
-        await message.answer("⛔️ تم إيقاف إرسال الجلسات.")
+        await message.answer("⛔️ تم إيقاف الجلسات.")
     else:
-        await message.answer("لا توجد جلسات حاليًا لإيقافها.")
+        await message.answer("لا توجد جلسات حالياً لإيقافها.")
 
-async def send_sessions():
-    global is_running, current_sessions, is_test_mode
-    if not is_running:
-        return
+# الدالة الرئيسية لإرسال الجلسات
+async def send_sessions(total_sessions):
+    global is_running, is_test_mode
+
+    # التوقيت حسب الجزائر
     tz = pytz.timezone("Africa/Algiers")
-    alg_time = datetime.now(tz)
-    work_duration = timedelta(minutes=5 if is_test_mode else 60)  # الجلسات
-    break_duration = timedelta(minutes=2 if is_test_mode else 10)  # الاستراحات
+    now = datetime.now(tz)
 
-    start_time = alg_time
-    end_time = start_time + work_duration
+    # تحديد المدة حسب الوضع
+    work_duration = timedelta(minutes=3 if is_test_mode else 60)
+    break_duration = timedelta(minutes=1 if is_test_mode else 10)
 
-    for i in range(1, current_sessions + 1):
+    for i in range(1, total_sessions + 1):
         if not is_running:
             return
 
-        msg = await bot.send_message(
+        start_time = datetime.now(tz)
+        end_time = start_time + work_duration
+
+        # إرسال جلسة
+        await bot.send_message(
             CHANNEL_ID,
             f"📅 • الجلسة {i} 📚 :\n\n"
             f"🕥   • من {start_time.strftime('%H:%M')} إلى {end_time.strftime('%H:%M')}\n\n"
             f"بالتوفيق والسداد للجميع 💜"
         )
 
-        # إرسال استراحة بعد 60 دقيقة
-        if i == 1:
-            await asyncio.sleep(work_duration.total_seconds())  # الانتظار 60 دقيقة
-            if not is_running:
-                return
+        await asyncio.sleep(work_duration.total_seconds())
+        if not is_running:
+            return
+
+        # استراحة (ماعدا بعد آخر جلسة)
+        if i != total_sessions:
             await bot.send_message(
                 CHANNEL_ID,
-                "🪫 راحة لمدة 10 دقائق ⌛️\n\n"
-                "⏰ متبقي : 10Min\n\n"
-                "الأفضل أن تقضيها بعيدا عن هاتفك 💜"
+                "🪫 راحة الآن ⌛️\n\n"
+                "⏳ حاول الابتعاد عن الهاتف قليلاً."
             )
-            await asyncio.sleep(break_duration.total_seconds())  # الانتظار 10 دقائق
+            await asyncio.sleep(break_duration.total_seconds())
 
-        # إرسال الجلسة الثانية بعد الاستراحة
-        if i != current_sessions:
-            start_time += work_duration + break_duration
-            end_time = start_time + work_duration
-
+    # نهاية كل الجلسات
     if is_running:
         await bot.send_message(
             CHANNEL_ID,
-            "🔋 انتهت الجلسات\n\nشكرا لكم على بقاءكم معي حتى الآن ربي ينجحنا و يقدرنا كاملين و لي مقراش معنا الآن يقرا معنا المرة القادمة 💜"
+            "🔋 انتهت الجلسات\n\n"
+            "شكراً على المتابعة! ربي ينجحنا كاملين 💜"
         )
         is_running = False
 
+# تشغيل البوت
 async def main():
     keep_alive()
     await dp.start_polling(bot)
