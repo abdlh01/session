@@ -69,94 +69,52 @@ async def stop_command(message: Message):
     else:
         await message.answer("لا توجد جلسات حاليًا لإيقافها.")
 
-async def countdown_edit(msg, total_seconds):
-    for remaining in range(total_seconds // 60, 0, -1):
-        if not is_running:
-            return
-        try:
-            await asyncio.sleep(60)
-            lines = msg.text.split("\n")
-            updated = False
-            for i, line in enumerate(lines):
-                if line.startswith("⏰ متبقي"):
-                    lines[i] = f"⏰ متبقي : {remaining}Min"
-                    updated = True
-                    break
-            if not updated:  # أضف السطر بعد السطر الأخير الخاص بالتوقيت
-                for i, line in enumerate(lines):
-                    if "إلى" in line:
-                        lines.insert(i + 1, f"⏰ متبقي : {remaining}Min")
-                        break
-            new_text = "\n".join(lines)
-            await bot.edit_message_text(new_text, msg.chat.id, msg.message_id)
-        except Exception as e:
-            break
-
-    # إذا انتهى الوقت ولم يتم تحديث الرسالة في الدورة، يمكننا تحديد حالة الانتهاء
-    if total_seconds == 0 or remaining <= 0:
-        lines = msg.text.split("\n")
-        for i, line in enumerate(lines):
-            if line.startswith("⏰ متبقي"):
-                lines[i] = "⏰ الجلسة انتهت"
-                break
-        new_text = "\n".join(lines)
-        await bot.edit_message_text(new_text, msg.chat.id, msg.message_id)
-
 async def send_sessions():
     global is_running, current_sessions, is_test_mode
     if not is_running:
         return
     tz = pytz.timezone("Africa/Algiers")
     alg_time = datetime.now(tz)
-    work_duration = timedelta(minutes=5 if is_test_mode else 60)
-    break_duration = timedelta(minutes=2 if is_test_mode else 10)
+    work_duration = timedelta(minutes=5 if is_test_mode else 60)  # الجلسات
+    break_duration = timedelta(minutes=2 if is_test_mode else 10)  # الاستراحات
 
     start_time = alg_time
     end_time = start_time + work_duration
-    msg = await bot.send_message(CHANNEL_ID,
-        f"🫶 بسم الله نبدا على بركة الله\n\n"
-        f"📅 • الجلسة الأولى 📚 :\n\n"
-        f"🕥   • من {start_time.strftime('%H:%M')} إلى {end_time.strftime('%H:%M')}\n\n"
-        f"بالتوفيق والسداد للجميع 💜")
-    await countdown_edit(msg, int(work_duration.total_seconds()))
-    await asyncio.sleep(work_duration.total_seconds())
 
-    if not is_running:
-        return
-
-    msg = await bot.send_message(CHANNEL_ID,
-        "🪫 راحة لمدة 10 دقائق ⌛️\n\n"
-        "⏰ متبقي : 10Min\n\n"
-        "الأفضل أن تقضيها بعيدا عن هاتفك 💜")
-    await countdown_edit(msg, int(break_duration.total_seconds()))
-    await asyncio.sleep(break_duration.total_seconds())
-
-    for i in range(2, current_sessions + 1):
+    for i in range(1, current_sessions + 1):
         if not is_running:
             return
-        start_time += work_duration + break_duration
-        end_time = start_time + work_duration
 
-        msg = await bot.send_message(CHANNEL_ID,
+        msg = await bot.send_message(
+            CHANNEL_ID,
             f"📅 • الجلسة {i} 📚 :\n\n"
             f"🕥   • من {start_time.strftime('%H:%M')} إلى {end_time.strftime('%H:%M')}\n\n"
-            f"بالتوفيق والسداد للجميع 💜")
-        await countdown_edit(msg, int(work_duration.total_seconds()))
-        await asyncio.sleep(work_duration.total_seconds())
+            f"بالتوفيق والسداد للجميع 💜"
+        )
 
-        if i != current_sessions:
+        # إرسال استراحة بعد 60 دقيقة
+        if i == 1:
+            await asyncio.sleep(work_duration.total_seconds())  # الانتظار 60 دقيقة
             if not is_running:
                 return
-            msg = await bot.send_message(CHANNEL_ID,
+            await bot.send_message(
+                CHANNEL_ID,
                 "🪫 راحة لمدة 10 دقائق ⌛️\n\n"
                 "⏰ متبقي : 10Min\n\n"
-                "الأفضل أن تقضيها بعيدا عن هاتفك 💜")
-            await countdown_edit(msg, int(break_duration.total_seconds()))
-            await asyncio.sleep(break_duration.total_seconds())
+                "الأفضل أن تقضيها بعيدا عن هاتفك 💜"
+            )
+            await asyncio.sleep(break_duration.total_seconds())  # الانتظار 10 دقائق
+
+        # إرسال الجلسة الثانية بعد الاستراحة
+        if i != current_sessions:
+            start_time += work_duration + break_duration
+            end_time = start_time + work_duration
 
     if is_running:
-        await bot.send_message(CHANNEL_ID,
-            "🔋 انتهت الجلسات\n\nشكرا لكم على بقاءكم معي حتى الآن ربي ينجحنا و يقدرنا كاملين و لي مقراش معنا الآن يقرا معنا المرة القادمة 💜")
+        await bot.send_message(
+            CHANNEL_ID,
+            "🔋 انتهت الجلسات\n\nشكرا لكم على بقاءكم معي حتى الآن ربي ينجحنا و يقدرنا كاملين و لي مقراش معنا الآن يقرا معنا المرة القادمة 💜"
+        )
         is_running = False
 
 async def main():
