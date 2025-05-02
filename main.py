@@ -102,7 +102,9 @@ async def send_sessions(total_sessions):
             f"بالتوفيق والسداد للجميع 💜"
         )
 
+        # تأكيد الجلسة تم إرسالها قبل الانتقال إلى التالية
         await asyncio.sleep(work_duration.total_seconds())
+
         if not is_running:
             return
 
